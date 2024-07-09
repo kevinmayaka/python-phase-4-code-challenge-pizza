@@ -14,76 +14,67 @@ db = SQLAlchemy(metadata=metadata)
 
 
 class Restaurant(db.Model, SerializerMixin):
-    __tablename__ = 'restaurants'
-    
+    __tablename__ = "restaurants"
+
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    location = db.Column(db.String, nullable=False)
-    
-    restaurant_pizzas = db.relationship('RestaurantPizza', back_populates='restaurant', cascade='all, delete-orphan')
-    pizzas = db.relationship('Pizza', secondary='restaurant_pizza', back_populates='restaurants')
+    name = db.Column(db.String)
+    address = db.Column(db.String)
 
-    serialize_rules = ('-restaurant_pizzas.restaurant', '-restaurant_pizzas.pizza')
+    # add relationship
+    restaurant_pizzas =db.relationship('RestaurantPizza', back_populates='restaurant', cascade='all, delete-orphan')
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'location': self.location
-        }
+    # add serialization rules
+    serialize_rules=('-restaurant_pizzas.restaurant',)
 
-    def __repr__(self):
+    #Association proxy
+    pizzas=association_proxy('restaurant_pizzas','pizza',creator=lambda pizza_obj: RestaurantPizza(pizza_obj))
+    def _repr_(self):
         return f"<Restaurant {self.name}>"
 
 
 class Pizza(db.Model, SerializerMixin):
-    __tablename__ = 'pizzas'
-    
+    __tablename__ = "pizzas"
+
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    ingredients = db.Column(db.String, nullable=False)
-    
-    restaurant_pizzas = db.relationship('RestaurantPizza', back_populates='pizza', cascade='all, delete-orphan')
-    restaurants = db.relationship('Restaurant', secondary='restaurant_pizza', back_populates='pizzas')
+    name = db.Column(db.String)
+    ingredients = db.Column(db.String)
 
-    serialize_rules = ('-restaurant_pizzas.restaurant', '-restaurant_pizzas.pizza')
+    # add relationship
+    restaurant_pizzas =db.relationship('RestaurantPizza', back_populates='pizza', cascade='all, delete-orphan')
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'ingredients': self.ingredients
-        }
+    # add serialization rules
+    serialize_rules=('-restaurant_pizzas.pizza',)
 
-    def __repr__(self):
+    #Association proxy
+    restaurants=association_proxy("restaurant_pizzas","restaurant",creator=lambda restaurant_obj:RestaurantPizza(restaurant_obj))
+
+    def _repr_(self):
         return f"<Pizza {self.name}, {self.ingredients}>"
 
 
 class RestaurantPizza(db.Model, SerializerMixin):
-    __tablename__ = 'restaurant_pizza'
-    
+    __tablename__ = "restaurant_pizzas"
+
     id = db.Column(db.Integer, primary_key=True)
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id', ondelete='CASCADE'), nullable=False)
-    pizza_id = db.Column(db.Integer, db.ForeignKey('pizzas.id', ondelete='CASCADE'), nullable=False)
-    price = db.Column(db.Float, nullable=False)
-    
+    price = db.Column(db.Integer, nullable=False)
+    pizza_id=db.Column(db.Integer, db.ForeignKey('pizzas.id'))
+    restaurant_id=db.Column(db.Integer, db.ForeignKey('restaurants.id'))
+
+    # add relationships
+    pizza =db.relationship('Pizza', back_populates= 'restaurant_pizzas')
     restaurant = db.relationship('Restaurant', back_populates='restaurant_pizzas')
-    pizza = db.relationship('Pizza', back_populates='restaurant_pizzas')
 
-    serialize_rules = ('-restaurant.restaurant_pizzas', '-pizza.restaurant_pizzas')
+    # add serialization rules
+    serialize_rules=('-restaurant.restaurant_pizzas', '-pizza.restaurant_pizzas',)
 
+    # add validation
     @validates('price')
     def validate_price(self, key, price):
-        if not (1 <= price <= 30):
-            raise ValueError("Price must be between 1 and 30")
+        if price <1 or price >30:
+            raise ValueError ('Price must be between 1 and 30')
         return price
+            
+        
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'restaurant_id': self.restaurant_id,
-            'pizza_id': self.pizza_id,
-            'price': self.price
-        }
-    def __repr__(self):
+    def _repr_(self):
         return f"<RestaurantPizza ${self.price}>"
